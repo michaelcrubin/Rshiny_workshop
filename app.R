@@ -1,12 +1,4 @@
 #
-# This is a Shiny web application. You can run the application by clicking
-# the 'Run App' button above.
-#
-# Find out more about building applications with Shiny here:
-#
-#    http://shiny.rstudio.com/
-#
-
 # renv::init()
 # Shiny Libraries
 library(here)
@@ -65,9 +57,10 @@ ui <- shinydashboardPlus::dashboardPage(
   dashboardBody(
     ##  Style and JS stuff // Don't touch ---------
     useShinyjs(),
-    tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "https://cdn.odapes.app/css/stylesheet_SSA.css"),
-              tags$link(rel = "stylesheet", type = "text/css", href = "css/entertainment.css"), # temporary // merge with CSS
-              tags$style(HTML(".popover.popover-lg {width: 500px; max-width: 500px;}"))
+    tags$head(
+      tags$link(rel = "stylesheet", type = "text/css", href = "https://cdn.odapes.app/css/stylesheet_SSA.css"),
+      tags$link(rel = "stylesheet", type = "text/css", href = "css/entertainment.css"), # temporary // merge with CSS
+      tags$style(HTML(".popover.popover-lg {width: 500px; max-width: 500px;}"))
     ),
     
     # BODY TABS
@@ -86,8 +79,8 @@ server <- function(input, output, session) {
   
   ##  APERO------------
   # entertainment window
-  entertain_modal()
-  
+  #entertain_modal()
+ 
   ##  LOAD REACTIVE VALS ------------
   # reactive user data
   r_user <- get_r_user()
@@ -96,7 +89,11 @@ server <- function(input, output, session) {
   # triggers
   r_control <- get_r_control()
   # reactive admin data
-
+  # jump over the entertain window
+  r_control$procedure_started <- as.numeric(Sys.time())*10
+  r_control$delay_procedure <- as.numeric(Sys.time())*10
+  r_control$start_procedure <- as.numeric(Sys.time())*10
+  
   # 
   ## CALL LAYER 2 MODULES -------------------------------------------------------
   # Map Panes

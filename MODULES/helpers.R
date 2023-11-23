@@ -93,6 +93,7 @@ get_r_user <- function(){
 
   user <- readRDS(here("data", "user.rds"))
   user_preference <- readRDS(here("data", "user_preference.rds"))
+  # user_preference <- read_csv2(here("data", "user_preference.csv"))
   
   react_list = shiny::reactiveValues(
     user = user,

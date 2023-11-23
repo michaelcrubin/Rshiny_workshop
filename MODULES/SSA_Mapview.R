@@ -70,7 +70,7 @@ entertain_modal <- function(){
 # calculates the delay to zoom in depending on long, lat, zoom
 calculate_zm_delay <- function(X){
   zeroPoint = c(0,0,2)
-  weights = c(25,25,400)
+  weights = c(25,25,850)
   X %>% dplyr::select(matches("lng"), matches("lat"), matches("zoom")) %>% as.matrix() %>% as.vector()%>%
     magrittr::subtract(zeroPoint) %>% magrittr::multiply_by(weights) %>% magrittr::raise_to_power(2) %>% sum() %>% sqrt()
 }
@@ -117,7 +117,7 @@ create_backgnd_map<-function(user_preference){
   return(background_map)
 }
 
-##FUNCTIONS: MENU LIST --------------------
+## FUNCTIONS: MENU LIST --------------------
 
 element_menu_cell <- function( ns, element_id, element_name, value, ... ){
   bx <- list(
@@ -161,6 +161,7 @@ leaflet_icon <- function(element_type, ...){
 # store the labels permanently so i just rerendering them when show/hide. The DF_chache lable
 # creation is separate process. cann maybe also clearmarkersfromcluster
 render_proxy_element <- function(element, pxy_map){
+
   tryCatch({
     if (nrow(element) > 0){
       pxy_map %>%
@@ -274,7 +275,7 @@ kmz_importer<-function(path){
   alert_message()
   # upload_to_s3(path)
   # kml_path <- convert_kmz_to_kml(path)
-  # kml<-kml_importer(path = kml_path)
+  # kml <- kml_importer(path = kml_path)
   #return(kml)
 }
 
@@ -302,11 +303,12 @@ read_vector_file <- function(file_path){
   return(sf_obj)
 }
 
-check_geo_type <- function(memory_file, geo_type, ...){
-  if (all(class(memory_file) %in% c("RasterStack", "RasterLayer", "RasterBrick"))) {
-    return(as.character(class(memory_file)))
-  } else if (all(class(memory_file) == c("sf", "data.frame"))){
-    type <- sf::st_geometry_type(memory_file, by_geometry = F) %>% as.character()
+check_geo_type <- function(map, geo_type, ...){
+  
+  if (all(class(map) %in% c("RasterStack", "RasterLayer", "RasterBrick"))) {
+    return(as.character(class(map)))
+  } else if (all(class(map) == c("sf", "data.frame"))){
+    type <- sf::st_geometry_type(map, by_geometry = F) %>% as.character()
     return(type)
   }
   else {
@@ -328,9 +330,11 @@ import_map_onfly <- function(file_path, geo_type){
 
 # Ads a clickable transparent polygon over raster or points
 add_click_layer <- function(pxy_map, data, name, type, ...){
+
   switch(type,
          
-         "RasterLayer" = {pxy_map %>% addPolygons(data = raster_to_border(data), group = name,
+         "RasterLayer" = {pxy_map %>%
+             addPolygons(data = raster_to_border(data), group = name,
                                                   stroke = 0,  weight = 0, dashArray = 0, color = "transparent",
                                                   highlightOptions = highlightOptions(weight = 0, fillColor = "#ffffff", dashArray = 0,  fillOpacity = 0.2, bringToFront = TRUE))
          },
@@ -356,6 +360,7 @@ make_convex_hull <- function(x_sf, buf = 0.2){
 
 render_to_leaflet <- function(geo_id, geo_type, map, pxy_map){
   # define the type of the map
+
   plot_type <- check_geo_type(map, geo_type)
   switch(plot_type, 
          
@@ -446,6 +451,7 @@ render_proxy_GEO <- function(geo_id, geo_type, file_path, pxy_map, ...){
   # abort if unable to parse map
   if (isFALSE(map)){return(NULL)}
 
+  
   # 2. rendering
   ret <- tryCatch({
     render_to_leaflet(geo_id, geo_type, map, pxy_map)
@@ -475,7 +481,7 @@ make_ggplot <- function(data){
 }
 
 click_modal <- function(ns, data){
-  
+
   removeModal()
   # create content
   if (data$type %in% c("raster", "vector")){
@@ -608,7 +614,7 @@ make_flymenu_maps <- function(ns){
 make_flymenu_elements <- function(ns){
   elem <- shiny::tabPanel(
     value = ("element_tab"),
-    title = h4("Elements"),
+    title = h4("Weather Stations"),
     tags$br(),
     #Top  button family
    menu_btn_group(ns),
@@ -689,7 +695,6 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
   moduleServer(id,function(input, output, session) {
 
     observeEvent(input$button_1, {
-      browser()
       # do anything
     })
     
@@ -723,6 +728,10 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
     # Rendering the Initial map and adding all layers -- this can be done faster//better
     output$background_map <- renderLeaflet({
       print("1. RENDER LEAFLET TILE")
+      
+      # artificial delay
+      # Sys.sleep(3)
+      
       r_control$rerender_map
       r_control$procedure_started <- NULL
       r_control$rendered_element <- NULL
@@ -770,6 +779,7 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
       shinyjs::hide("panel_up_right")
 
       tm <-  calculate_zm_delay(r_user$user_preference)
+      print(tm)
       delay(0,{
         print("3.2 DELAY OVER")
         r_control$procedure_started <- as.numeric(Sys.time())*10
@@ -800,6 +810,7 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
       req(r_data$element)
       req(r_control$procedure_started)
       print("4.1 GET ELEMENTS TO RENDER")
+
       r_control$to_render_element <- r_data$element %>%
         dplyr::filter(!(element_id %in% isolate(r_control$rendered_element))) %>% 
         mutate(show = TRUE) %>% df_to_lst(nms = "element_id", vals = "show")
@@ -819,7 +830,7 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
     observe({
       req(nrow(r_data$element)>0)
       r_control$to_render_element <- r_data$element$element_id %>% purrr::map(~ input[[.x]]) %>% 
-        setNames(r_data$element$element_id) #%>% purrr::keep(.p = isTRUE) #%>% names()
+        setNames(r_data$element$element_id) 
     })
     
     # Listens to element zoom button
@@ -827,7 +838,6 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
       req(nrow(r_data$element)>0)
       new_zoom_vec <- r_data$element$element_id %>% purrr::map(~ input[[paste0("zoom-", .x)]])%>% setNames(r_data$element$element_id) %>%
         Filter(function(x) x != 0, .)
-      
       zoom_to <- which_changed(new = new_zoom_vec, old = isolate(r_control$zoom_vec))
       r_control$zoom_vec <- new_zoom_vec
       if (length(zoom_to) > 0){
@@ -928,14 +938,14 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
     # Closing the popup and showing the menu
     observeEvent(temp_vals$close_popup, {
       print("close popup")
-      browser()
-      shinyjs::show("panel_flymenu")
-      shinyjs::hide("button_flymenu")
-      delete_proxy_map(leafletProxy("background_map"), c("temp_raster", "temp_poly"))
-      temp_vals$actual_popup_data<- NULL
-      temp_vals$id_vector <- NULL
-      temp_vals$click <- NULL
-      output$popup_place <- shiny::renderUI({NULL})
+      req(F)
+      # shinyjs::show("panel_flymenu")
+      # shinyjs::hide("button_flymenu")
+      # delete_proxy_map(leafletProxy("background_map"), c("temp_raster", "temp_poly"))
+      # temp_vals$actual_popup_data<- NULL
+      # temp_vals$id_vector <- NULL
+      # temp_vals$click <- NULL
+      # output$popup_place <- shiny::renderUI({NULL})
     })
 
     # clicks on marker
@@ -968,7 +978,6 @@ SSA_Map_SERVER <- function(id, r_data, r_user, r_control, params) {
     observeEvent(temp_vals$click, {
 
       req(temp_vals$click$id)
-      st <- Sys.time()
        # get the data
       temp_vals$actual_popup_data <- get_popup_data(temp_vals$click$id, r_data, r_user)
       temp_vals$renderggplot <- click_modal(ns, temp_vals$actual_popup_data)
